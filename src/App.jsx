@@ -61,7 +61,7 @@ export default function App() {
   if (configError) return <div className="p-10 text-red-600 text-center font-bold">{String(configError)}</div>;
 
   const [user, setUser] = useState(null);
-  const [viewMode, setViewMode] = useState('landing'); // 'landing', 'manager', 'kiosk'
+  const [viewMode, setViewMode] = useState('landing'); 
   const [kioskLocation, setKioskLocation] = useState(() => {
     try { return localStorage.getItem('safeclock_device_name') || 'Main Office'; } catch (e) { return 'Main Office'; }
   });
@@ -233,7 +233,41 @@ function ManagerDashboard({ userId, kioskLocation, setKioskLocation }) {
     try { const batch = writeBatch(db); employees.forEach(emp => { if (emp.currentCode !== '-----' && emp.codeValidDate === targetDateStr) return; const newCode = Math.floor(100000 + Math.random() * 900000).toString(); batch.update(doc(db, 'artifacts', appId, 'public', 'data', 'employees', emp.id), { currentCode: newCode, codeValidDate: targetDateStr }); }); await batch.commit(); alert('Codes Generated'); } catch (e) { alert("Error: " + e.message); }
   };
 
-  const isLate = (timestamp, shiftTime) => { if (!timestamp || !shiftTime) return false; try { const timeStr = timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }); return timeStr > shiftTime; } catch (e) { return false; } };
+  // UPDATED ISLATE FUNCTION: Smart check for first login of the day
+  const isLate = (log, allLogs) => {
+    if (!log.timestamp) return false;
+    
+    // 1. Must be a "Clock In" action
+    if (!log.action.includes('In')) return false;
+
+    // 2. Identify the employee and the date of this specific log
+    const logDateStr = log.timestamp.toDate().toLocaleDateString();
+    
+    // 3. Find ALL clock-in logs for this person on this specific date
+    // We filter from the full `allLogs` list which is already sorted by desc timestamp
+    const todaysClockIns = allLogs.filter(l => 
+      l.employeeId === log.employeeId && 
+      l.action.includes('In') &&
+      l.timestamp &&
+      l.timestamp.toDate().toLocaleDateString() === logDateStr
+    );
+
+    // 4. Sort ascending (earliest first) to find the absolute first clock-in
+    todaysClockIns.sort((a, b) => a.timestamp - b.timestamp);
+
+    // 5. IF there are no logs (weird) OR this log is NOT the first one...
+    if (todaysClockIns.length === 0 || todaysClockIns[0].id !== log.id) {
+      return false; // It's a second/third clock-in (e.g. from lunch), so NOT late.
+    }
+
+    // 6. It IS the first clock-in. Now check the time.
+    const shiftTime = log.shiftStart || settings.defaultShift;
+    try {
+      const timeStr = log.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+      return timeStr > shiftTime;
+    } catch (e) { return false; }
+  };
+
   const getTargetDate = (offset) => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toLocaleDateString('en-CA'); };
 
   return (
@@ -304,7 +338,8 @@ function ManagerDashboard({ userId, kioskLocation, setKioskLocation }) {
                     <div className="flex justify-between">
                       <div className="font-medium">
                         {log.employeeName} 
-                        {log.action.includes('In') && isLate(log.timestamp, log.shiftStart || settings.defaultShift) && <span className="text-red-500 text-xs font-bold ml-2">LATE</span>}
+                        {/* UPDATE: Use the new smart isLate function */}
+                        {isLate(log, logs) && <span className="text-red-500 text-xs font-bold ml-2">LATE</span>}
                       </div>
                       {log.location && <div className="text-[10px] bg-slate-100 px-1 rounded text-slate-500">{log.location}</div>}
                     </div>
