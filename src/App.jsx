@@ -325,7 +325,7 @@ function ManagerDashboard({ userId, kioskLocation, setKioskLocation }) {
 
 function KioskMode({ userId, kioskLocation }) {
   const [inputCode, setInputCode] = useState('');
-  const [status, setStatus] = useState('locked'); 
+  const [status, setStatus] = useState('idle'); 
   const [message, setMessage] = useState('');
   const [clock, setClock] = useState(new Date());
   const [dailyMsg, setDailyMsg] = useState('');
@@ -344,23 +344,52 @@ function KioskMode({ userId, kioskLocation }) {
 
   const capturePhoto = () => { if (videoRef.current && canvasRef.current) { const ctx = canvasRef.current.getContext('2d'); ctx.drawImage(videoRef.current, 0, 0, 100, 100); return canvasRef.current.toDataURL('image/jpeg', 0.5); } return null; };
   const handlePress = (n) => { if (inputCode.length < 6) setInputCode(prev => prev + n); };
+  
   const handleSubmit = async () => {
     if (inputCode.length !== 6) return;
     const prevStatus = status; setStatus('processing');
     try {
       const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'employees'), where('currentCode', '==', inputCode));
       const snap = await getDocs(q);
-      if (snap.empty) { setStatus('error'); setMessage('Invalid Code'); setTimeout(() => { setStatus(prevStatus); setInputCode(''); }, 2000); return; }
-      const empDoc = snap.docs[0]; const emp = empDoc.data(); const today = new Date().toLocaleDateString('en-CA'); const photo = capturePhoto();
-      if (prevStatus === 'locked') {
-        if (emp.isKeyholder && emp.codeValidDate === today) { await performAction(empDoc, emp, 'Clock In (Unlock)', 'in', photo); setStatus('success'); setMessage(`Unlocked: ${emp.name}`); setTimeout(() => { setStatus('idle'); setInputCode(''); }, 2000); } else { setStatus('error'); setMessage('Auth Failed'); setTimeout(() => { setStatus('locked'); setInputCode(''); }, 2000); }
-        return;
+      
+      if (snap.empty) { 
+        setStatus('error'); 
+        setMessage('Invalid Code'); 
+        setTimeout(() => { setStatus('idle'); setInputCode(''); }, 2000); 
+        return; 
       }
-      if (emp.codeValidDate !== today) { setStatus('error'); setMessage('Code Expired'); setTimeout(() => { setStatus('idle'); setInputCode(''); }, 2000); return; }
-      const action = emp.status === 'in' ? 'Clock Out' : 'Clock In';
-      await performAction(empDoc, emp, action, emp.status === 'in' ? 'out' : 'in', photo);
-      setStatus('success'); setMessage(emp.status === 'in' ? 'Goodbye!' : dailyMsg || 'Welcome!'); setTimeout(() => { setStatus('idle'); setInputCode(''); }, 3000);
-    } catch (e) { console.error(e); setStatus('error'); setMessage('System Error'); setTimeout(() => setStatus(prevStatus), 2000); }
+      
+      const empDoc = snap.docs[0]; 
+      const emp = empDoc.data(); 
+      const today = new Date().toLocaleDateString('en-CA'); 
+      const photo = capturePhoto();
+      
+      if (emp.codeValidDate !== today) { 
+        setStatus('error'); 
+        setMessage('Code Expired'); 
+        setTimeout(() => { setStatus('idle'); setInputCode(''); }, 2000); 
+        return; 
+      }
+      
+      const isClockingIn = emp.status !== 'in';
+      const action = isClockingIn ? 'Clock In' : 'Clock Out';
+      const newStatus = isClockingIn ? 'in' : 'out';
+      
+      // Simpler messages as requested
+      const successMsg = isClockingIn ? `Hello ${emp.name.split(' ')[0]}, you are clocked in.` : `You are clocked out.`;
+      
+      await performAction(empDoc, emp, action, newStatus, photo);
+      
+      setStatus('success'); 
+      setMessage(successMsg); 
+      setTimeout(() => { setStatus('idle'); setInputCode(''); }, 3000);
+      
+    } catch (e) { 
+      console.error(e); 
+      setStatus('error'); 
+      setMessage('System Error'); 
+      setTimeout(() => setStatus('idle'), 2000); 
+    }
   };
 
   const performAction = async (ref, data, action, newStatus, photo) => {
@@ -369,28 +398,28 @@ function KioskMode({ userId, kioskLocation }) {
   };
 
   return (
-    <div className={`min-h-full flex flex-col items-center justify-center p-4 transition-colors duration-500 ${status === 'locked' ? 'bg-black' : 'bg-slate-900'} relative overflow-hidden flex-1`}>
+    <div className={`min-h-full flex flex-col items-center justify-center p-4 transition-colors duration-500 bg-slate-900 relative overflow-hidden flex-1`}>
       <canvas ref={canvasRef} width="100" height="100" className="hidden" />
-      <video ref={videoRef} autoPlay playsInline muted className={`absolute inset-0 w-full h-full object-cover pointer-events-none transition-opacity duration-1000 ${status === 'locked' ? 'opacity-0' : 'opacity-20'}`} />
+      <video ref={videoRef} autoPlay playsInline muted className={`absolute inset-0 w-full h-full object-cover pointer-events-none opacity-20`} />
       <div className="text-center mb-8 relative z-10">
-        {status === 'locked' ? <div className="text-slate-500 flex flex-col items-center"><Lock size={48} /><span className="text-sm mt-2 uppercase tracking-widest">System Locked</span></div> : <div className="text-slate-400 font-medium tracking-widest uppercase text-sm mb-2">SafeClock • {kioskLocation}</div>}
+        <div className="text-slate-400 font-medium tracking-widest uppercase text-sm mb-2">SafeClock • {kioskLocation}</div>
         <div className="text-6xl font-bold text-white">{clock.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
         <div className="text-slate-400 mt-2">{clock.toLocaleDateString()}</div>
       </div>
-      <div className={`relative z-10 bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden ${status === 'locked' ? 'opacity-80' : 'opacity-100'}`}>
-        <div className={`h-32 flex flex-col items-center justify-center p-6 ${status === 'success' ? 'bg-green-500' : status === 'error' ? 'bg-red-500' : status === 'locked' ? 'bg-slate-800' : 'bg-slate-100'}`}>
-          {status === 'success' && <><CheckCircle className="text-white mb-2" size={40}/><div className="text-white text-xl font-bold">{message}</div></>}
+      <div className={`relative z-10 bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden`}>
+        <div className={`h-32 flex flex-col items-center justify-center p-6 ${status === 'success' ? 'bg-green-500' : status === 'error' ? 'bg-red-500' : 'bg-slate-100'}`}>
+          {status === 'success' && <><CheckCircle className="text-white mb-2" size={40}/><div className="text-white text-xl font-bold text-center">{message}</div></>}
           {status === 'error' && <><XCircle className="text-white mb-2" size={40}/><div className="text-white text-xl font-bold">Error</div><div className="text-red-100 text-sm">{message}</div></>}
-          {(status === 'locked' || status === 'idle' || status === 'processing') && (<><div className={`text-sm mb-2 font-medium flex items-center gap-2 ${status === 'locked' ? 'text-slate-400' : 'text-slate-500'}`}>{status === 'locked' ? <><Key size={14}/> KEYHOLDER UNLOCK</> : <><Camera size={14}/> ENTER CODE</>}</div><div className={`text-4xl font-mono font-bold tracking-[0.5em] h-10 ${status === 'locked' ? 'text-white' : 'text-slate-800'}`}>{inputCode.padEnd(6, '•')}</div></>)}
+          {(status === 'idle' || status === 'processing') && (<><div className={`text-sm mb-2 font-medium flex items-center gap-2 text-slate-500`}><Camera size={14}/> ENTER CODE</div><div className={`text-4xl font-mono font-bold tracking-[0.5em] h-10 text-slate-800`}>{inputCode.padEnd(6, '•')}</div></>)}
         </div>
-        <div className={`p-6 grid grid-cols-3 gap-4 ${status === 'locked' ? 'bg-slate-900' : 'bg-white'}`}>
-          {[1,2,3,4,5,6,7,8,9].map(n => <button key={n} onClick={() => handlePress(n.toString())} className={`h-16 rounded-2xl text-2xl font-bold shadow-sm border ${status === 'locked' ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-100 text-slate-700 active:bg-slate-200'}`}>{n}</button>)}
-          <button onClick={() => {setInputCode(''); if(status!=='locked') setStatus('idle')}} className={`h-16 rounded-2xl font-medium text-sm ${status === 'locked' ? 'bg-red-900/30 text-red-400' : 'bg-amber-50 text-amber-600'}`}>CLEAR</button>
-          <button onClick={() => handlePress('0')} className={`h-16 rounded-2xl text-2xl font-bold shadow-sm border ${status === 'locked' ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-100 text-slate-700 active:bg-slate-200'}`}>0</button>
-          <button onClick={() => setInputCode(p => p.slice(0,-1))} className={`h-16 rounded-2xl font-medium ${status === 'locked' ? 'bg-slate-800 text-slate-500' : 'bg-slate-50 text-slate-500'}`}>⌫</button>
+        <div className={`p-6 grid grid-cols-3 gap-4 bg-white`}>
+          {[1,2,3,4,5,6,7,8,9].map(n => <button key={n} onClick={() => handlePress(n.toString())} className={`h-16 rounded-2xl text-2xl font-bold shadow-sm border bg-slate-50 border-slate-100 text-slate-700 active:bg-slate-200`}>{n}</button>)}
+          <button onClick={() => {setInputCode(''); setStatus('idle')}} className={`h-16 rounded-2xl font-medium text-sm bg-amber-50 text-amber-600`}>CLEAR</button>
+          <button onClick={() => handlePress('0')} className={`h-16 rounded-2xl text-2xl font-bold shadow-sm border bg-slate-50 border-slate-100 text-slate-700 active:bg-slate-200`}>0</button>
+          <button onClick={() => setInputCode(p => p.slice(0,-1))} className={`h-16 rounded-2xl font-medium bg-slate-50 text-slate-500`}>⌫</button>
         </div>
-        <div className={`p-6 pt-0 ${status === 'locked' ? 'bg-slate-900' : 'bg-white'}`}>
-          <button onClick={handleSubmit} disabled={inputCode.length !== 6 || status === 'processing' || status === 'success'} className={`w-full h-16 text-lg font-bold rounded-2xl shadow-lg ${status === 'locked' ? 'bg-indigo-900 text-indigo-200 disabled:bg-slate-800' : 'bg-indigo-600 text-white disabled:bg-slate-300'}`}>{status === 'processing' ? 'Processing...' : status === 'locked' ? 'UNLOCK SYSTEM' : 'CONFIRM'}</button>
+        <div className={`p-6 pt-0 bg-white`}>
+          <button onClick={handleSubmit} disabled={inputCode.length !== 6 || status === 'processing' || status === 'success'} className={`w-full h-16 text-lg font-bold rounded-2xl shadow-lg bg-indigo-600 text-white disabled:bg-slate-300`}>{status === 'processing' ? 'Processing...' : 'CONFIRM'}</button>
         </div>
       </div>
       <div className="mt-8 text-slate-600 text-xs flex items-center gap-2 opacity-50 relative z-10"><ShieldCheck size={12} /> Secure Connection • Location Verified • Camera Active</div>
