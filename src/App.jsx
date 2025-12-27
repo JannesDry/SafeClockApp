@@ -126,7 +126,8 @@ const runAutoPilot = async () => {
         
         empSnap.docs.forEach(doc => {
           const emp = doc.data();
-          const workDays = emp.workDays || [1,2,3,4,5]; 
+          // CHANGED: Default is now [1,2,3,4,5,6] (Mon-Sat) for old employees
+          const workDays = emp.workDays || [1,2,3,4,5,6]; 
           
           // 2. WORK DAY CHECK (Weekly)
           if (!workDays.includes(now.getDay())) return;
@@ -262,6 +263,12 @@ export default function App() {
     } catch (err) { if (adminPinInput === '0000') { setViewMode('manager'); setShowAdminLogin(false); } else { setAdminError('Error'); } }
   };
 
+  const handleManagerSelect = () => {
+    setAdminError('');
+    setAdminPinInput('');
+    setShowAdminLogin(true);
+  };
+
   if (!user) return <div className="min-h-screen flex items-center justify-center bg-slate-100 text-slate-500">Connecting...</div>;
 
   return (
@@ -296,7 +303,7 @@ export default function App() {
               <p className="text-slate-500 text-sm mb-6">For employees to clock in/out</p>
               <div className="flex items-center gap-2 text-indigo-600 font-bold text-sm">Open Interface <ChevronRight size={16} /></div>
             </button>
-            <button onClick={() => { setAdminError(''); setAdminPinInput(''); setShowAdminLogin(true); }} className="group relative bg-white p-8 rounded-3xl shadow-sm hover:shadow-xl border-2 border-transparent hover:border-slate-200 transition-all duration-300 text-left overflow-hidden">
+            <button onClick={handleManagerSelect} className="group relative bg-white p-8 rounded-3xl shadow-sm hover:shadow-xl border-2 border-transparent hover:border-slate-200 transition-all duration-300 text-left overflow-hidden">
               <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><LayoutGrid size={100} className="text-slate-600 transform rotate-12 translate-x-4 -translate-y-4" /></div>
               <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-600 mb-4 group-hover:scale-110 transition-transform"><LayoutGrid size={24} /></div>
               <h3 className="text-2xl font-bold text-slate-800 mb-1">Manager Portal</h3>
@@ -339,7 +346,8 @@ function ManagerDashboard({ userId, kioskLocation, setKioskLocation }) {
   const [newEmpChatId, setNewEmpChatId] = useState('');
   const [newEmpShift, setNewEmpShift] = useState('08:00'); 
   const [isKeyholder, setIsKeyholder] = useState(false);
-  const [newEmpWorkDays, setNewEmpWorkDays] = useState([1, 2, 3, 4, 5]);
+  // CHANGED DEFAULT: Now includes Saturday (6) for new employees
+  const [newEmpWorkDays, setNewEmpWorkDays] = useState([1, 2, 3, 4, 5, 6]);
   const [editingLeaveEmployee, setEditingLeaveEmployee] = useState(null); // STATE FOR LEAVE MODAL
 
   const [settings, setSettings] = useState({ defaultShift: '08:00', dailyMessage: '', adminPin: '0000', telegramBotToken: '', lastAutoGenerateTime: 'Never' });
@@ -369,7 +377,7 @@ function ManagerDashboard({ userId, kioskLocation, setKioskLocation }) {
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'employees'), { 
         name: newEmpName, telegramChatId: newEmpChatId, shiftStart: newEmpShift, isKeyholder, workDays: newEmpWorkDays, currentCode: '-----', codeValidDate: '', lastClockIn: null, status: 'out' 
       }); 
-      setNewEmpName(''); setNewEmpChatId(''); setIsKeyholder(false); setNewEmpWorkDays([1,2,3,4,5]);
+      setNewEmpName(''); setNewEmpChatId(''); setIsKeyholder(false); setNewEmpWorkDays([1,2,3,4,5,6]);
     } catch (e) { alert("Error: " + e.message); }
   };
 
@@ -510,7 +518,7 @@ function KioskMode({ userId, kioskLocation }) {
     } catch (e) { console.error(e); setStatus('error'); setMessage('System Error'); setTimeout(() => setStatus('idle'), 2000); }
   };
 
-  const performAction = async (ref, data, action, newStatus, photo) => {
+  const performAction = async (ref, data, action, newStatus, photo, geo) => {
     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'logs'), { employeeId: ref.id, employeeName: data.name, shiftStart: data.shiftStart || '08:00', action, timestamp: serverTimestamp(), photoUrl: photo, location: kioskLocation, geo: await getGeoLocation() });
     await updateDoc(ref.ref, { lastClockIn: serverTimestamp(), status: newStatus });
   };
