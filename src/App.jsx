@@ -98,6 +98,17 @@ const runAutoPilot = async () => {
   if (!db) return false;
   console.log("Auto-Pilot: Checking...");
   try {
+    // 1. TIME CHECK (06:30 AM)
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+
+    // If it's earlier than 06:30, STOP. Do not generate.
+    if (currentHour < 6 || (currentHour === 6 && currentMinute < 30)) {
+      console.log("Auto-Pilot: Too early (Waiting for 06:30)...");
+      return false;
+    }
+
     const settingsRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config');
     const snap = await getDoc(settingsRef);
     const todayStr = new Date().toLocaleDateString('en-CA');
@@ -261,7 +272,7 @@ export default function App() {
               </div>
             </button>
           </div>
-          <div className="mt-12 text-slate-400 text-xs font-mono">v2.9.0 (GPS) • {kioskLocation}</div>
+          <div className="mt-12 text-slate-400 text-xs font-mono">v2.9.2 (Fixed) • {kioskLocation}</div>
         </div>
       )}
 
@@ -341,21 +352,8 @@ function ManagerDashboard({ userId, kioskLocation, setKioskLocation }) {
     if (!log.timestamp) return false;
     if (!log.action.includes('In')) return false; 
     const logDateStr = log.timestamp.toDate().toLocaleDateString();
-    // Filter logs for this employee on this day that are "Clock In"
-    const todaysClockIns = allLogs.filter(l => 
-      l.employeeId === log.employeeId && 
-      l.action.includes('In') && 
-      l.timestamp && 
-      l.timestamp.toDate().toLocaleDateString() === logDateStr
-    );
-    
-    // Sort by timestamp (safely)
-    todaysClockIns.sort((a, b) => {
-        const tA = a.timestamp?.toMillis ? a.timestamp.toMillis() : 0;
-        const tB = b.timestamp?.toMillis ? b.timestamp.toMillis() : 0;
-        return tA - tB;
-    });
-
+    const todaysClockIns = allLogs.filter(l => l.employeeId === log.employeeId && l.action.includes('In') && l.timestamp && l.timestamp.toDate().toLocaleDateString() === logDateStr);
+    todaysClockIns.sort((a, b) => a.timestamp - b.timestamp);
     if (todaysClockIns.length === 0 || todaysClockIns[0].id !== log.id) return false;
     const shiftTime = log.shiftStart || settings.defaultShift;
     try { const timeStr = log.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }); return timeStr > shiftTime; } catch (e) { return false; }
