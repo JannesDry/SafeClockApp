@@ -9,21 +9,20 @@ import {
   Clock, Users, ShieldCheck, History, 
   RefreshCw, CheckCircle, XCircle, LayoutGrid, Monitor, 
   MessageCircle, FileText, Download, Lock, Key, Menu, Phone,
-  Camera, LogIn, LogOut, Settings, Bell, AlertTriangle, Clock4, Shield, MapPin, Database, ArrowLeft, ChevronRight, Zap, Send, Activity, Map
+  Camera, LogIn, LogOut, Settings, Bell, AlertTriangle, Clock4, Shield, MapPin, Database, ArrowLeft, ChevronRight, Zap, Send, Activity
 } from 'lucide-react';
 
 // ==========================================
 // 🚨 ACTION REQUIRED: PASTE YOUR FIREBASE KEYS BELOW 🚨
 // ==========================================
-const firebaseConfig = {
+let firebaseConfig = {
     apiKey: "AIzaSyCB7ubf-QD1KPmTkq4HX-pLOfLACsqthwg",
     authDomain: "safeclock-41787.firebaseapp.com",
     projectId: "safeclock-41787",
     storageBucket: "safeclock-41787.firebasestorage.app",
     messagingSenderId: "874093872562",
     appId: "1:874093872562:web:1cac723ac784bb8acd10ab",
-    measurementId: "G-MPQ0KV9SNT"
-  };
+};
 
 // --- AUTOMATIC CHAT PREVIEW SETUP ---
 if (typeof __firebase_config !== 'undefined') {
@@ -262,7 +261,7 @@ export default function App() {
               </div>
             </button>
           </div>
-          <div className="mt-12 text-slate-400 text-xs font-mono">v2.8.0 (Live Fix) • {kioskLocation}</div>
+          <div className="mt-12 text-slate-400 text-xs font-mono">v2.9.0 (GPS) • {kioskLocation}</div>
         </div>
       )}
 
@@ -342,8 +341,21 @@ function ManagerDashboard({ userId, kioskLocation, setKioskLocation }) {
     if (!log.timestamp) return false;
     if (!log.action.includes('In')) return false; 
     const logDateStr = log.timestamp.toDate().toLocaleDateString();
-    const todaysClockIns = allLogs.filter(l => l.employeeId === log.employeeId && l.action.includes('In') && l.timestamp && l.timestamp.toDate().toLocaleDateString() === logDateStr);
-    todaysClockIns.sort((a, b) => a.timestamp - b.timestamp);
+    // Filter logs for this employee on this day that are "Clock In"
+    const todaysClockIns = allLogs.filter(l => 
+      l.employeeId === log.employeeId && 
+      l.action.includes('In') && 
+      l.timestamp && 
+      l.timestamp.toDate().toLocaleDateString() === logDateStr
+    );
+    
+    // Sort by timestamp (safely)
+    todaysClockIns.sort((a, b) => {
+        const tA = a.timestamp?.toMillis ? a.timestamp.toMillis() : 0;
+        const tB = b.timestamp?.toMillis ? b.timestamp.toMillis() : 0;
+        return tA - tB;
+    });
+
     if (todaysClockIns.length === 0 || todaysClockIns[0].id !== log.id) return false;
     const shiftTime = log.shiftStart || settings.defaultShift;
     try { const timeStr = log.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }); return timeStr > shiftTime; } catch (e) { return false; }
@@ -446,7 +458,7 @@ function ManagerDashboard({ userId, kioskLocation, setKioskLocation }) {
                       <div className="flex items-center gap-2">
                         {log.location && <div className="text-[10px] bg-slate-100 px-1 rounded text-slate-500">{log.location}</div>}
                         {log.geo && (
-                          <a href={`https://www.google.com/maps?q=${log.geo.lat},${log.geo.lng}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700"><Map size={14}/></a>
+                          <a href={`https://www.google.com/maps?q=${log.geo.lat},${log.geo.lng}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700"><MapPin size={14}/></a>
                         )}
                       </div>
                     </div>
