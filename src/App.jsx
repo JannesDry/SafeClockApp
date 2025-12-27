@@ -126,7 +126,6 @@ const runAutoPilot = async () => {
         
         empSnap.docs.forEach(doc => {
           const emp = doc.data();
-          // CHANGED: Default is now [1,2,3,4,5,6] (Mon-Sat) for old employees
           const workDays = emp.workDays || [1,2,3,4,5,6]; 
           
           // 2. WORK DAY CHECK (Weekly)
@@ -311,7 +310,7 @@ export default function App() {
               <div className="flex items-center gap-2 text-slate-600 font-bold text-sm">Secure Login <Lock size={14} /></div>
             </button>
           </div>
-          <div className="mt-12 text-slate-400 text-xs font-mono">v2.11.0 (Leave Manager) • {kioskLocation}</div>
+          <div className="mt-12 text-slate-400 text-xs font-mono">v2.11.1 (Visual Fix) • {kioskLocation}</div>
         </div>
       )}
 
@@ -443,20 +442,23 @@ function ManagerDashboard({ userId, kioskLocation, setKioskLocation }) {
               </form>
               <div className="text-xs text-slate-400 mb-4 bg-slate-50 p-2 rounded"><strong>Tip:</strong> To get Chat ID, ask employee to search for <code>@userinfobot</code> on Telegram.</div>
               
-              {employees.map(emp => (
-                <div key={emp.id} className="flex justify-between items-center py-2 border-b text-sm">
-                  <div>
-                    <span className="font-medium">{emp.name}</span> <span className="text-xs text-slate-400">({emp.shiftStart || '08:00'})</span>
-                    <div className="flex gap-1 mt-1">{[1,2,3,4,5,6,0].map(d => (<span key={d} className={`text-[9px] w-4 text-center ${emp.workDays && emp.workDays.includes(d) ? 'text-indigo-600 font-bold' : 'text-slate-200'}`}>{days[d]}</span>))}</div>
+              {employees.map(emp => {
+                // FIXED VISUAL BUG: Ensure existing employees visually show as Mon-Sat workers
+                const effectiveDays = emp.workDays || [1,2,3,4,5,6];
+                return (
+                  <div key={emp.id} className="flex justify-between items-center py-2 border-b text-sm">
+                    <div>
+                      <span className="font-medium">{emp.name}</span> <span className="text-xs text-slate-400">({emp.shiftStart || '08:00'})</span>
+                      <div className="flex gap-1 mt-1">{[1,2,3,4,5,6,0].map(d => (<span key={d} className={`text-[9px] w-4 text-center ${effectiveDays.includes(d) ? 'text-indigo-600 font-bold' : 'text-slate-200'}`}>{days[d]}</span>))}</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setEditingLeaveEmployee(emp)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors" title="Manage Leave"><CalendarIcon size={16} /></button>
+                      <span className="font-mono text-indigo-600 ml-2">{emp.currentCode}</span>
+                      {emp.telegramChatId ? <button onClick={() => sendTelegramMessage(settings.telegramBotToken, emp.telegramChatId, `Test: Your code is ${emp.currentCode}`)} className="text-blue-500 hover:text-blue-700 ml-2"><Send size={16}/></button> : <span className="text-slate-300 ml-2"><Send size={16}/></span>}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {/* LEAVE MANAGEMENT BUTTON */}
-                    <button onClick={() => setEditingLeaveEmployee(emp)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors" title="Manage Leave"><CalendarIcon size={16} /></button>
-                    <span className="font-mono text-indigo-600 ml-2">{emp.currentCode}</span>
-                    {emp.telegramChatId ? <button onClick={() => sendTelegramMessage(settings.telegramBotToken, emp.telegramChatId, `Test: Your code is ${emp.currentCode}`)} className="text-blue-500 hover:text-blue-700 ml-2"><Send size={16}/></button> : <span className="text-slate-300 ml-2"><Send size={16}/></span>}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
           <div className="bg-white p-6 rounded-xl border border-slate-200">
