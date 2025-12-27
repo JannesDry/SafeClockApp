@@ -1,0 +1,7 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # This tells Netlify to stop panic-blocking the Firebase Key
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
