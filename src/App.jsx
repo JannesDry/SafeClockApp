@@ -15,14 +15,15 @@ import {
 // ==========================================
 // 🚨 ACTION REQUIRED: PASTE YOUR FIREBASE KEYS BELOW 🚨
 // ==========================================
-let firebaseConfig = {
-  apiKey: "PASTE_API_KEY_HERE",
-  authDomain: "PASTE_AUTH_DOMAIN_HERE",
-  projectId: "PASTE_PROJECT_ID_HERE",
-  storageBucket: "PASTE_STORAGE_BUCKET_HERE",
-  messagingSenderId: "PASTE_SENDER_ID_HERE",
-  appId: "PASTE_APP_ID_HERE"
-};
+const firebaseConfig = {
+    apiKey: "AIzaSyCB7ubf-QD1KPmTkq4HX-pLOfLACsqthwg",
+    authDomain: "safeclock-41787.firebaseapp.com",
+    projectId: "safeclock-41787",
+    storageBucket: "safeclock-41787.firebasestorage.app",
+    messagingSenderId: "874093872562",
+    appId: "1:874093872562:web:1cac723ac784bb8acd10ab",
+    measurementId: "G-MPQ0KV9SNT"
+  };
 
 // --- AUTOMATIC CHAT PREVIEW SETUP ---
 if (typeof __firebase_config !== 'undefined') {
