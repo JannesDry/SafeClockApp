@@ -16,12 +16,13 @@ import {
 // 🚨 ACTION REQUIRED: PASTE YOUR FIREBASE KEYS BELOW 🚨
 // ==========================================
 let firebaseConfig = {
-    apiKey: "AIzaSyCB7ubf-QD1KPmTkq4HX-pLOfLACsqthwg",
+  apiKey: "AIzaSyCB7ubf-QD1KPmTkq4HX-pLOfLACsqthwg",
     authDomain: "safeclock-41787.firebaseapp.com",
     projectId: "safeclock-41787",
     storageBucket: "safeclock-41787.firebasestorage.app",
     messagingSenderId: "874093872562",
     appId: "1:874093872562:web:1cac723ac784bb8acd10ab",
+    measurementId: "G-MPQ0KV9SNT"
 };
 
 // --- AUTOMATIC CHAT PREVIEW SETUP ---
@@ -126,6 +127,7 @@ const runAutoPilot = async () => {
         
         empSnap.docs.forEach(doc => {
           const emp = doc.data();
+          // CHANGED: Default is now [1,2,3,4,5,6] (Mon-Sat) for old employees
           const workDays = emp.workDays || [1,2,3,4,5,6]; 
           
           // 2. WORK DAY CHECK (Weekly)
@@ -310,7 +312,7 @@ export default function App() {
               <div className="flex items-center gap-2 text-slate-600 font-bold text-sm">Secure Login <Lock size={14} /></div>
             </button>
           </div>
-          <div className="mt-12 text-slate-400 text-xs font-mono">v2.11.1 (Visual Fix) • {kioskLocation}</div>
+          <div className="mt-12 text-slate-400 text-xs font-mono">v2.11.2 (Final Polish) • {kioskLocation}</div>
         </div>
       )}
 
@@ -443,9 +445,9 @@ function ManagerDashboard({ userId, kioskLocation, setKioskLocation }) {
               <div className="text-xs text-slate-400 mb-4 bg-slate-50 p-2 rounded"><strong>Tip:</strong> To get Chat ID, ask employee to search for <code>@userinfobot</code> on Telegram.</div>
               
               {employees.map(emp => {
-                // FIXED VISUAL BUG: Ensure existing employees visually show as Mon-Sat workers
-                const effectiveDays = emp.workDays || [1,2,3,4,5,6];
-                return (
+                 // VISUAL FIX: If workDays is missing, show Mon-Sat active
+                 const effectiveDays = emp.workDays || [1,2,3,4,5,6];
+                 return (
                   <div key={emp.id} className="flex justify-between items-center py-2 border-b text-sm">
                     <div>
                       <span className="font-medium">{emp.name}</span> <span className="text-xs text-slate-400">({emp.shiftStart || '08:00'})</span>
@@ -457,7 +459,7 @@ function ManagerDashboard({ userId, kioskLocation, setKioskLocation }) {
                       {emp.telegramChatId ? <button onClick={() => sendTelegramMessage(settings.telegramBotToken, emp.telegramChatId, `Test: Your code is ${emp.currentCode}`)} className="text-blue-500 hover:text-blue-700 ml-2"><Send size={16}/></button> : <span className="text-slate-300 ml-2"><Send size={16}/></span>}
                     </div>
                   </div>
-                );
+                 );
               })}
             </div>
           </div>
